@@ -24,10 +24,10 @@ router.post("/register", async (req, res) => {
     // Criptografa a senha
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Insere o usuário no banco de dados
+    // Insere o usuário no banco de dados (salvando também a senha normal conforme solicitado, embora não seja recomendado em produção)
     await pool.query(
-      "INSERT INTO usuarios (email, senha_hash, nome, telefone, tipo) VALUES (?, ?, ?, ?, 'cliente')",
-      [email, hashedPassword, finalName, finalPhone]
+      "INSERT INTO usuarios (email, senha, senha_hash, nome, telefone, tipo) VALUES (?, ?, ?, ?, ?, 'cliente')",
+      [email, password, hashedPassword, finalName, finalPhone]
     );
 
     res.status(201).json({ message: "Usuário cadastrado com sucesso!" });
