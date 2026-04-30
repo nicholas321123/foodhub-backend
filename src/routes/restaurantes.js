@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/database');
+const adminAuth = require('../middlewares/adminAuth');
 
 // Listar todos os restaurantes (com suporte a busca)
 router.get('/', async (req, res) => {
@@ -65,13 +66,13 @@ router.get('/:id', async (req, res) => {
 });
 
 // Criar restaurante
-router.post('/', async (req, res) => {
-  const { nome, cnpj, telefone, endereco, logo_url, tempo_estimado_entrega, status } = req.body;
+router.post('/', adminAuth, async (req, res) => {
+  const { nome, responsavel, cnpj, telefone, endereco, logo_url, tempo_estimado_entrega, status } = req.body;
   try {
     const [result] = await pool.query(`
-      INSERT INTO restaurantes (nome, cnpj, telefone, endereco, logo_url, tempo_estimado_entrega, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [nome, cnpj, telefone, endereco, logo_url, tempo_estimado_entrega, status || 'aberto']);
+      INSERT INTO restaurantes (nome, responsavel, cnpj, telefone, endereco, logo_url, tempo_estimado_entrega, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [nome, responsavel, cnpj, telefone, endereco, logo_url, tempo_estimado_entrega, status || 'aberto']);
     res.status(201).json({ id: result.insertId, message: 'Restaurante criado com sucesso.' });
   } catch (error) {
     console.error(error);
@@ -80,15 +81,15 @@ router.post('/', async (req, res) => {
 });
 
 // Editar restaurante
-router.put('/:id', async (req, res) => {
+router.put('/:id', adminAuth, async (req, res) => {
   const { id } = req.params;
-  const { nome, cnpj, telefone, endereco, logo_url, tempo_estimado_entrega, status } = req.body;
+  const { nome, responsavel, cnpj, telefone, endereco, logo_url, tempo_estimado_entrega, status } = req.body;
   try {
     await pool.query(`
       UPDATE restaurantes 
-      SET nome=?, cnpj=?, telefone=?, endereco=?, logo_url=?, tempo_estimado_entrega=?, status=?
+      SET nome=?, responsavel=?, cnpj=?, telefone=?, endereco=?, logo_url=?, tempo_estimado_entrega=?, status=?
       WHERE id = ? AND deleted_at IS NULL
-    `, [nome, cnpj, telefone, endereco, logo_url, tempo_estimado_entrega, status, id]);
+    `, [nome, responsavel, cnpj, telefone, endereco, logo_url, tempo_estimado_entrega, status, id]);
     res.json({ message: 'Restaurante atualizado com sucesso.' });
   } catch (error) {
     console.error(error);
@@ -97,10 +98,15 @@ router.put('/:id', async (req, res) => {
 });
 
 // Deletar restaurante (soft delete)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', adminAuth, async (req, res) => {
   const { id } = req.params;
   try {
-    await pool.query(`UPDATE restaurantes SET deleted_at = NOW() WHERE id = ?`, [id]);
+    const [result] = await pool.query(`UPDATE restaurantes SET deleted_at = NOW() WHERE id = ?`, [id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Restaurante não encontrado ou já excluído.' });
+    }
+    
     res.json({ message: 'Restaurante excluído com sucesso.' });
   } catch (error) {
     console.error(error);
